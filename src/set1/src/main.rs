@@ -1,0 +1,16 @@
+use anyhow::Result;
+
+mod base64;
+mod xor;
+mod util;
+
+fn main() -> Result<()> {
+    // set 1 - challenge 1
+    let input = "49276d206b696c6c696e6720796f757220627261696e206c696b65206120706f69736f6e6f7573206d757368726f6f6d";
+    let hex_input = util::string_to_hex(input)?;
+    let encoded_input = base64::encode(&hex_input);
+
+    println!("{}", encoded_input);
+
+    Ok(())
+}
