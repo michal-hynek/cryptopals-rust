@@ -26,6 +26,19 @@ static CHAR_VALUES: LazyLock<HashMap<u8, u8>> = LazyLock::<HashMap<u8, u8>>::new
     (b'F', 15),
 ]));
 
+static HEX_VALUES: LazyLock<HashMap<u8, u8>> = LazyLock::<HashMap<u8, u8>>::new(|| {
+    let mut hex_values = HashMap::new();
+    let char_values_no_uppercase = CHAR_VALUES.iter().filter(|(hex_char, _)|
+        **hex_char >= b'0' && **hex_char <= b'9' || **hex_char >= b'a' && **hex_char <= b'f'
+    );
+
+    for (hex_char, val) in char_values_no_uppercase {
+        hex_values.insert(*val, *hex_char);
+    }
+
+    hex_values
+});
+
 #[derive(Error, Debug)]
 pub enum HexConversionError {
     #[error("hex string length has to be even")]
@@ -35,17 +48,24 @@ pub enum HexConversionError {
     InvalidDigit,
 }
 
-fn to_hex(byte: &[u8]) -> Result<u8, HexConversionError> {
-    let val1 = match CHAR_VALUES.get(&byte[0]) {
+fn to_hex(chars: &[u8]) -> Result<u8, HexConversionError> {
+    let val1 = match CHAR_VALUES.get(&chars[0]) {
         Some(val) => val,
         None => return Err(HexConversionError::InvalidDigit),
     };
-    let val2 = match CHAR_VALUES.get(&byte[1]) {
+    let val2 = match CHAR_VALUES.get(&chars[1]) {
         Some(val) => val,
         None => return Err(HexConversionError::InvalidDigit),
     };
 
     Ok(val1*16 + val2)
+}
+
+fn from_hex(hex: &u8) -> [u8; 2] {
+    let char1 = HEX_VALUES.get(&(hex / 16)).unwrap();
+    let char2 = HEX_VALUES.get(&(hex % 16)).unwrap();
+
+    [*char1, *char2]
 }
 
 // converts hex string input to hex bytes
@@ -61,6 +81,12 @@ pub fn string_to_hex(hex_string: &str) -> Result<Vec<u8>, HexConversionError> {
     }
 
     Ok(hex)
+}
+
+pub fn hex_to_string(hex: &[u8]) -> String {
+    let chars = hex.iter().flat_map(from_hex).collect::<Vec<u8>>();
+
+    String::from_utf8_lossy(&chars).into()
 }
 
 #[cfg(test)]
@@ -101,5 +127,25 @@ mod util_test {
         assert_eq!(vec![15, 21], string_to_hex("0F15")?);
 
         Ok(())
+    }
+
+    #[test]
+    fn test_hex_to_string_single_byte() {
+        assert_eq!("0a", hex_to_string(&[0xa]));
+        assert_eq!("0b", hex_to_string(&[0xb]));
+        assert_eq!("0c", hex_to_string(&[0xc]));
+        assert_eq!("0d", hex_to_string(&[0xd]));
+        assert_eq!("0e", hex_to_string(&[0xe]));
+        assert_eq!("0f", hex_to_string(&[0xf]));
+    }
+
+    #[test]
+    fn test_hex_to_string_multiple_bytes() {
+        assert_eq!("0a10", hex_to_string(&[10, 16]));
+        assert_eq!("0b11", hex_to_string(&[11, 17]));
+        assert_eq!("0c12", hex_to_string(&[12, 18]));
+        assert_eq!("0d13", hex_to_string(&[13, 19]));
+        assert_eq!("0e14", hex_to_string(&[14, 20]));
+        assert_eq!("0f15", hex_to_string(&[15, 21]));
     }
 }

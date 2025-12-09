@@ -12,5 +12,12 @@ fn main() -> Result<()> {
 
     println!("{}", encoded_input);
 
+    // set 2 - challenge 2
+    let input1 = util::string_to_hex("1c0111001f010100061a024b53535009181c")?;
+    let input2 = util::string_to_hex("686974207468652062756c6c277320657965")?;
+    let xor = xor::xor(&input1, &input2)?;
+
+    println!("{}", util::hex_to_string(&xor));
+
     Ok(())
 }
