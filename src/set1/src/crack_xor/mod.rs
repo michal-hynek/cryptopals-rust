@@ -21,7 +21,7 @@ static LETTER_FREQUENCIES: Lazy<HashMap<u8, f64>> = Lazy::new(|| {
     frequency_map
 });
 
-fn mean_square_error(input: &[u8]) -> f64 {
+fn input_error(input: &[u8]) -> f64 {
     let mut char_counts = HashMap::<u8, usize>::new();
 
     for byte in input.to_ascii_lowercase().iter() {
@@ -50,7 +50,7 @@ fn guess_key(input: &[u8]) -> u8 {
 
     for candidate_key in 0u8..255 {
         let xor_input = xor(input, &[candidate_key]);
-        let error = mean_square_error(&xor_input);
+        let error = input_error(&xor_input);
 
         if error < min_error {
             min_error = error;
@@ -64,6 +64,25 @@ fn guess_key(input: &[u8]) -> u8 {
 pub fn crack_input(input: &[u8], _key_len: usize) -> Vec<u8> {
     let key = guess_key(input);
     xor(input, &[key])
+}
+
+// returns a single deciphered input
+// assumption - only one input in the vector has been xor encrypted
+pub fn crack_inputs(inputs: &Vec<Vec<u8>>, key_len: usize) -> Vec<u8> {
+    let mut result= Vec::new();
+    let mut min_error = 9999999999999999.9;
+
+    for input in inputs {
+        let deciphered_input = crack_input(input, key_len);
+        let input_error = input_error(&deciphered_input);
+
+        if input_error < min_error {
+            result = deciphered_input;
+            min_error = input_error;
+        }
+    }
+
+    result 
 }
 
 #[cfg(test)]

@@ -26,5 +26,15 @@ fn main() -> Result<()> {
 
     println!("{}", String::from_utf8_lossy(&deciphered_input));
 
+    // challenge 4 - detect single-character XOR
+    let input = std::fs::read_to_string("input/4.txt")?;
+    let input_hex_lines = input
+        .split("\n")
+        .map(|line| util::string_to_hex(line).unwrap())
+        .collect::<Vec<Vec<u8>>>();
+    let deciphered_input = crack_xor::crack_inputs(&input_hex_lines, 1);
+
+    println!("{}", String::from_utf8_lossy(&deciphered_input));
+
     Ok(())
 }
