@@ -36,5 +36,12 @@ fn main() -> Result<()> {
 
     println!("{}", String::from_utf8_lossy(&deciphered_input));
 
+    // challenge 5 - implement repeating-key XOR
+    let input = "Burning 'em, if you ain't quick and nimble\nI go crazy when I hear a cymbal";
+    let encrypted_input_hex = xor::xor(input.as_bytes(), "ICE".as_bytes());
+    let encrypted_input= util::hex_to_string(&encrypted_input_hex);
+
+    println!("{}", &encrypted_input);
+
     Ok(())
 }
