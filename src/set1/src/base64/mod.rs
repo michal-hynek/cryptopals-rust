@@ -1,6 +1,19 @@
 use std::{collections::HashMap, sync::LazyLock};
 
 use bitvec::prelude::*;
+use once_cell::sync::Lazy;
+use thiserror::Error;
+
+#[derive(Error, Debug, PartialEq)]
+pub enum Base64Error {
+    #[error("invalid base64 character {character:?}")]
+    InvalidCharacter {
+        character: u8,
+    },
+
+    #[error("invalid base64 input length")]
+    InvalidLength,
+}
 
 static BASE64_MAPPING: LazyLock<HashMap<u8, u8>> = LazyLock::new(|| HashMap::from([
     (0, b'A'), (1, b'B'), (2, b'C'), (3, b'D'), (4, b'E'), (5, b'F'), (6, b'G'),
@@ -14,6 +27,16 @@ static BASE64_MAPPING: LazyLock<HashMap<u8, u8>> = LazyLock::new(|| HashMap::fro
     (56, b'4'), (57, b'5'), (58, b'6'), (59, b'7'), (60, b'8'), (61, b'9'), (62, b'+'),
     (63, b'/'),
 ]));
+
+static BASE64_REVERSE_MAPPING: Lazy<HashMap<u8, u8>> = Lazy::new(|| {
+    let mut mapping = HashMap::new();
+
+    for (code, char) in BASE64_MAPPING.iter() {
+        mapping.insert(*char, *code);
+    }
+
+    mapping
+});
 
 fn pad(input: &[u8], output: &mut Vec<u8>) {
     if input.len() % 3 == 1 {
@@ -54,8 +77,47 @@ pub fn encode(input: &[u8]) -> String {
     String::from_utf8_lossy(&output).into()
 }
 
+pub fn decode(base64_input: &[u8]) -> Result<Vec<u8>, Base64Error> {
+    if base64_input.len() * 6 % 8 != 0 {
+        return Err(Base64Error::InvalidLength);
+    }
+
+    let mut decoded_bits = BitVec::<u8, Msb0>::new();
+    let mut contains_padding = false;
+
+    for base64_char in base64_input {
+        if *base64_char == b'=' {
+            contains_padding = true;
+            break;
+        }
+
+        let base64_val = match BASE64_REVERSE_MAPPING.get(base64_char) {
+            Some(val) => val,
+            None => return Err(Base64Error::InvalidCharacter { character: *base64_char }),
+        };
+
+        decoded_bits.push((*base64_val & (1 << 5)) != 0);
+        decoded_bits.push((*base64_val & (1 << 4)) != 0);
+        decoded_bits.push((*base64_val & (1 << 3)) != 0);
+        decoded_bits.push((*base64_val & (1 << 2)) != 0);
+        decoded_bits.push((*base64_val & (1 << 1)) != 0);
+        decoded_bits.push((*base64_val & 1) != 0);
+    }
+
+    // remove the trailing 0 bits added when base64 padded to the byte boundary
+    if contains_padding {
+        while decoded_bits.len() % 8 != 0 {
+            decoded_bits.pop();
+        }
+    }
+
+    Ok(decoded_bits.into())
+}
+
 #[cfg(test)]
 mod base64_test {
+    use rand::{Rng, rngs::ThreadRng};
+
     use super::*;
 
     #[test]
@@ -99,5 +161,86 @@ mod base64_test {
         let expected_base64 = "SSdtIGtpbGxpbmcgeW91ciBicmFpbiBsaWtlIGEgcG9pc29ub3VzIG11c2hyb29t";
 
         assert_eq!(expected_base64, encode(&input));
+    }
+
+    #[test]
+    fn test_decode_empty_base64() {
+        let decoded = decode(&Vec::new()).unwrap();
+
+        assert!(decoded.is_empty()); 
+    }
+
+    #[test]
+    fn test_decode_error_for_invalid_length() {
+        let base64 = "YW";
+
+        let decode_result = decode(base64.as_bytes());
+
+        assert!(decode_result.is_err());
+        assert_eq!(Base64Error::InvalidLength, decode_result.err().unwrap());
+    }
+
+    #[test]
+    fn test_decode_error_for_invalid_character() {
+        let base64 = "YWJ$";
+
+        let decode_result = decode(base64.as_bytes());
+
+        assert!(decode_result.is_err());
+        assert_eq!(Base64Error::InvalidCharacter { character: b'$' }, decode_result.err().unwrap());
+    }
+
+    #[test]
+    fn test_decode_no_padding() {
+        let base64 = "TWFueSBoYW5kcyBtYWtlIGxpZ2h0IHdvcmsu";
+        let expected_decoded= "Many hands make light work.".as_bytes();
+
+        let decoded = decode(base64.as_bytes()).unwrap();
+
+        assert_eq!(expected_decoded, decoded);
+    }
+
+    #[test]
+    fn test_decode_single_padding() {
+        let base64 = "SGVsbG8gV29ybGQ=";
+        let expected_decoded = "Hello World".as_bytes();
+
+        let decoded = decode(base64.as_bytes()).unwrap();
+
+        assert_eq!(expected_decoded, decoded);
+    }
+
+    #[test]
+    fn test_decode_double_padding() {
+        let base64 = "SG9sYSBNdW5kbw==";
+        let expected_decoded = "Hola Mundo".as_bytes();
+
+        let decoded = decode(base64.as_bytes()).unwrap();
+
+        assert_eq!(expected_decoded, decoded);
+    }
+
+    #[test]
+    fn test_encode_decode_fuzz() {
+        let mut rng = rand::rng();
+
+        for _ in 0..1000 {
+            let input = generate_random_input(&mut rng);
+            let decoded = decode(encode(&input).as_bytes()).unwrap();
+
+            assert_eq!(input, decoded);
+        }
+    }
+
+    fn generate_random_input(rng: &mut ThreadRng) -> Vec<u8> {
+        let len = rng.random_range(0..=100);
+        let mut input = Vec::new();
+
+        for _ in 0..len {
+            let rand_byte = rng.random_range(0..255) as u8;
+            input.push(rand_byte);
+        }
+
+        input
     }
 }
