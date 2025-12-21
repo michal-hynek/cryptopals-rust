@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use bitvec::{order::Msb0, vec::BitVec};
 use once_cell::sync::Lazy;
 
 use crate::xor::xor;
@@ -61,6 +62,25 @@ fn guess_key(input: &[u8]) -> u8 {
     key
 }
 
+fn hamming_distance(input1: &[u8], input2: &[u8]) -> Result<usize, String> {
+    let input1_bits = BitVec::<u8, Msb0>::from_vec(input1.to_vec());
+    let input2_bits = BitVec::<u8, Msb0>::from_vec(input2.to_vec());
+
+    if input1_bits.len() != input2_bits.len() {
+        return Err("inputs must have the same length".to_string());
+    }
+
+    let mut distance = 0;
+
+    for (input1_bit, input2_bit) in input1_bits.iter().zip(input2_bits.iter()) {
+        if input1_bit != input2_bit {
+            distance += 1;
+        }
+    }
+
+    Ok(distance)
+}
+
 pub fn crack_input(input: &[u8], _key_len: usize) -> Vec<u8> {
     let key = guess_key(input);
     xor(input, &[key])
@@ -87,6 +107,8 @@ pub fn crack_inputs(inputs: &Vec<Vec<u8>>, key_len: usize) -> Vec<u8> {
 
 #[cfg(test)]
 mod crack_test {
+    use anyhow::Result;
+
     use crate::util::HexConversionError;
 
     use super::*;
@@ -101,6 +123,18 @@ mod crack_test {
         let deciphered_message = String::from_utf8_lossy(&deciphered_hex);
 
         assert_eq!(message, deciphered_message);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_hamming_distance() -> Result<()> {
+        let input1 = "this is a test".as_bytes();
+        let input2 = "wokka wokka!!!".as_bytes();
+
+        let distance = hamming_distance(input1, input2).unwrap();
+
+        assert_eq!(37, distance);
 
         Ok(())
     }
