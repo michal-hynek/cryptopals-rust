@@ -22,7 +22,7 @@ fn main() -> Result<()> {
 
     // challenge 3 - single-byte xor cipher
     let input = util::string_to_hex("1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736")?;
-    let deciphered_input = crack_xor::crack_input(&input, 1);
+    let deciphered_input = crack_xor::crack_single_byte_xor(&input);
 
     println!("{}", String::from_utf8_lossy(&deciphered_input));
 
@@ -32,7 +32,7 @@ fn main() -> Result<()> {
         .split("\n")
         .map(|line| util::string_to_hex(line).unwrap())
         .collect::<Vec<Vec<u8>>>();
-    let deciphered_input = crack_xor::crack_inputs(&input_hex_lines, 1);
+    let deciphered_input = crack_xor::crack_single_byte_xors(&input_hex_lines);
 
     println!("{}", String::from_utf8_lossy(&deciphered_input));
 
@@ -42,6 +42,13 @@ fn main() -> Result<()> {
     let encrypted_input= util::hex_to_string(&encrypted_input_hex);
 
     println!("{}", &encrypted_input);
+
+    // challenge 6 - break repeating-key XOR
+    let base64_input = std::fs::read_to_string("input/6.txt").unwrap().replace("\n", "");
+    let input = base64::decode(base64_input.as_bytes()).unwrap();
+    let deciphered_input = crack_xor::crack_multi_byte_xor(&input);
+
+    println!("{}", String::from_utf8_lossy(&deciphered_input));
 
     Ok(())
 }

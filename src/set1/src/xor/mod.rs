@@ -42,4 +42,17 @@ mod test_xor {
 
         assert_eq!(x_xor_y, result);
     }
+
+    #[test]
+    fn test_xor_same_input_returns_zero() {
+        let x = [
+            0x1c, 0x01, 0x11, 0x00, 0x1f, 0x01, 0x01,
+            0x00, 0x06, 0x1a, 0x02, 0x4b, 0x53, 0x53,
+            0x50, 0x09, 0x18, 0x1c
+        ];
+
+        let result = xor(&x, &x);
+
+        assert_eq!(vec![0u8; x.len()], result);
+    }
 }
