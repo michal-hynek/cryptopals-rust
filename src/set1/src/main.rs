@@ -1,5 +1,6 @@
 use anyhow::Result;
 
+mod aes;
 mod base64;
 mod xor;
 mod crack_xor;
@@ -49,6 +50,14 @@ fn main() -> Result<()> {
     let deciphered_input = crack_xor::crack_multi_byte_xor(&input);
 
     println!("{}", String::from_utf8_lossy(&deciphered_input));
+
+    // challenge 7 - AES ECB cipher
+    let base64_input = std::fs::read_to_string("input/7.txt").unwrap().replace("\n", "");
+    let key = "YELLOW SUBMARINE";
+    let mut input = base64::decode(base64_input.as_bytes()).unwrap();
+    let decrypted_input = aes::decrypt(&mut input, key.as_bytes(), aes::Mode::ECB);
+
+    println!("{}", String::from_utf8_lossy(&decrypted_input));
 
     Ok(())
 }
