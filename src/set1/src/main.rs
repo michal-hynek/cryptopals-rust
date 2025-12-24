@@ -59,5 +59,16 @@ fn main() -> Result<()> {
 
     println!("{}", String::from_utf8_lossy(&decrypted_input));
 
+    // challenge 8 - Detect ECB input
+    let input = std::fs::read_to_string("input/8.txt").unwrap();
+
+    for (line, hex) in input.lines().enumerate() {
+        let hex = util::string_to_hex(hex).unwrap();
+
+        if aes::is_ecb_encrypted(&hex) {
+            println!("line {line} is ECB encrypted - {}", util::hex_to_string(&hex));
+        }
+    }
+
     Ok(())
 }
